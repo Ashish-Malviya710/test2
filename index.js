@@ -5,7 +5,12 @@ const { Server } = require("socket.io");
 const app = express();
 const server = http.createServer(app);
 
-const io = new Server(server);
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
+});
 
 app.use(express.static("public"));
 
@@ -15,9 +20,11 @@ io.on("connection", (socket) => {
   socket.on("join-room", (roomId) => {
     socket.join(roomId);
 
+    console.log(`${socket.id} joined room ${roomId}`);
+
     const room = io.sockets.adapter.rooms.get(roomId);
 
-    if (room.size > 1) {
+    if (room && room.size > 1) {
       socket.to(roomId).emit("user-joined");
     }
 
@@ -35,10 +42,13 @@ io.on("connection", (socket) => {
   });
 
   socket.on("disconnect", () => {
-    console.log("User Disconnected");
+    console.log("User Disconnected:", socket.id);
   });
 });
 
-server.listen(3000, () => {
-  console.log("Server Running on http://localhost:3000");
+// Use deployment port or 3000 locally
+const PORT = process.env.PORT || 3000;
+
+server.listen(PORT, () => {
+  console.log(`Server Running on Port ${PORT}`);
 });
