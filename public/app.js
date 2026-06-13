@@ -2,12 +2,12 @@ const socket = io();
 
 const localVideo = document.getElementById("localVideo");
 const remoteVideo = document.getElementById("remoteVideo");
-
 const joinBtn = document.getElementById("joinBtn");
 const roomInput = document.getElementById("roomInput");
 
 let localStream;
 let peerConnection;
+let roomId;
 
 const servers = {
   iceServers: [
@@ -18,12 +18,17 @@ const servers = {
 };
 
 async function startMedia() {
-  localStream = await navigator.mediaDevices.getUserMedia({
-    video: true,
-    audio: true
-  });
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({
+      video: true,
+      audio: true
+    });
 
-  localVideo.srcObject = localStream;
+    localVideo.srcObject = localStream;
+  } catch (err) {
+    alert("Camera/Microphone permission denied");
+    console.error(err);
+  }
 }
 
 function createPeerConnection() {
@@ -39,14 +44,20 @@ function createPeerConnection() {
 
   peerConnection.onicecandidate = (event) => {
     if (event.candidate) {
-      socket.emit("ice-candidate", event.candidate);
+      socket.emit("ice-candidate", {
+        roomId,
+        candidate: event.candidate
+      });
     }
+  };
+
+  peerConnection.onconnectionstatechange = () => {
+    console.log("Connection State:", peerConnection.connectionState);
   };
 }
 
 joinBtn.addEventListener("click", async () => {
-
-  const roomId = roomInput.value.trim();
+  roomId = roomInput.value.trim();
 
   if (!roomId) {
     alert("Enter Room ID");
@@ -54,42 +65,43 @@ joinBtn.addEventListener("click", async () => {
   }
 
   await startMedia();
-
   createPeerConnection();
 
   socket.emit("join-room", roomId);
 });
 
 socket.on("user-joined", async () => {
-
   const offer = await peerConnection.createOffer();
 
   await peerConnection.setLocalDescription(offer);
 
-  socket.emit("offer", offer);
+  socket.emit("offer", {
+    roomId,
+    offer
+  });
 });
 
-socket.on("offer", async (offer) => {
-
-  await peerConnection.setRemoteDescription(offer);
+socket.on("offer", async (data) => {
+  await peerConnection.setRemoteDescription(data.offer);
 
   const answer = await peerConnection.createAnswer();
 
   await peerConnection.setLocalDescription(answer);
 
-  socket.emit("answer", answer);
+  socket.emit("answer", {
+    roomId,
+    answer
+  });
 });
 
-socket.on("answer", async (answer) => {
-
-  await peerConnection.setRemoteDescription(answer);
+socket.on("answer", async (data) => {
+  await peerConnection.setRemoteDescription(data.answer);
 });
 
-socket.on("ice-candidate", async (candidate) => {
-
+socket.on("ice-candidate", async (data) => {
   try {
-    await peerConnection.addIceCandidate(candidate);
-  } catch (error) {
-    console.error(error);
+    await peerConnection.addIceCandidate(data.candidate);
+  } catch (err) {
+    console.error(err);
   }
 });
