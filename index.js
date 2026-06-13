@@ -27,18 +27,18 @@ io.on("connection", (socket) => {
     if (room && room.size > 1) {
       socket.to(roomId).emit("user-joined");
     }
+  });
 
-    socket.on("offer", (offer) => {
-      socket.to(roomId).emit("offer", offer);
-    });
+  socket.on("offer", (data) => {
+    socket.to(data.roomId).emit("offer", data);
+  });
 
-    socket.on("answer", (answer) => {
-      socket.to(roomId).emit("answer", answer);
-    });
+  socket.on("answer", (data) => {
+    socket.to(data.roomId).emit("answer", data);
+  });
 
-    socket.on("ice-candidate", (candidate) => {
-      socket.to(roomId).emit("ice-candidate", candidate);
-    });
+  socket.on("ice-candidate", (data) => {
+    socket.to(data.roomId).emit("ice-candidate", data);
   });
 
   socket.on("disconnect", () => {
@@ -46,7 +46,6 @@ io.on("connection", (socket) => {
   });
 });
 
-// Use deployment port or 3000 locally
 const PORT = process.env.PORT || 3000;
 
 server.listen(PORT, () => {
